@@ -361,7 +361,7 @@ def checkback():
             CY.set(str(cycles))
         switched  = False
         
-    if flowshow < float(FTdisplay.get()) and BPshow > 40: #and flowshow > .1
+    if flowshow < float(FTdisplay.get()) and BPshow > 40 and flowshow > .1: 
         backwash = True
         Switch.set('Backwash')
         if switched == False:
