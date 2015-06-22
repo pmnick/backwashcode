@@ -332,22 +332,6 @@ def move_time():
     #root.title(title)
     root.after(baseTime*resolution,move_time)
 
-def checkback():
-    global  forwardflow, backwash, Switch, switched, cycles, FlowTarget, flowshow
-    if backwash == True:
-        backwash = False
-        Switch.set('Forward')
-        if switched == True:
-            cycles = cycles+1
-            CY.set(str(cycles))
-        switched  = False
-        
-    if flowshow < float(FTdisplay.get()) and BPshow > 40: #and flowshow > .1
-        backwash = True
-        Switch.set('Backwash')
-        switched = True
-    root.after(minimumtime,checkback)
-
 def SwitchB(delay):
     print 'start backwash'
     GPIO.output(ForwardPumpValve,vclose)
@@ -365,7 +349,26 @@ def SwitchF(delay):
     GPIO.output(BackwashTankValve, vopen)
     GPIO.output(ForwardPumpValve,vopen)
     print 'end forward'
+
+def checkback():
+    global  forwardflow, backwash, Switch, switched, cycles, FlowTarget, flowshow
+    if backwash == True:
+        backwash = False
+        Switch.set('Forward')
+        if switched == True:
+            thread.start_new_thread(SwitchB,(.2,))
+            cycles = cycles+1
+            CY.set(str(cycles))
+        switched  = False
         
+    if flowshow < float(FTdisplay.get()) and BPshow > 40: #and flowshow > .1
+        backwash = True
+        Switch.set('Backwash')
+        if switched == False:
+            thread.start_new_thread(SwitchF,(.2,))
+        switched = True
+    root.after(minimumtime,checkback)
+
 def writeData(): 
     global destination,cycles,Diffshow,switched,samplePeriod,ForwardFlowCount,oldForwardFlowCount,BackwashFlowCount,oldBackwashFlowCount,forwardflow,backwashflow,FlowrateAvg,flowshow
 
@@ -410,19 +413,7 @@ def writeData():
 ##    else:
 ##        Switch2.set('Gallons')
 ##        ConversionFactor = 15.7
-##        ConversionFactor2 = 3800 # pulses per gallon
- 
-    if backwash:
-        if switched == True:
-            thread.start_new_thread(SwitchB,(.5,))
-
-    else:
-        if switched == False:
-            thread.start_new_thread(SwitchF,(.5,))
-       
-        
-
-        
+##        ConversionFactor2 = 3800 # pulses per gallon        
         
     forwardflow=((ForwardFlowCount-oldForwardFlowCount)/samplePeriod)*60 #60 is a conversion factor to convert the flowrate from pulses per 100miliseconds to liters per minute
     FlowrateAvg.pop(0)
