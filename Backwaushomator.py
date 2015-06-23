@@ -437,10 +437,10 @@ def callback_end(event):
     global FlowCount, StartTime
     GPIO.output(ForwardPump, off)
     GPIO.output(BackwashPump, off)
-    GPIO.output(ForwardTankValve, vopen)#lets pressure out into the tank
     GPIO.output(ForwardPumpValve, vclose)#Keeps pressure in the tank
-    GPIO.output(BackwashTankValve, vopen)
     GPIO.output(BackwashPumpValve, vclose)
+    GPIO.output(ForwardTankValve, vopen)#lets pressure out into the tank
+    GPIO.output(BackwashTankValve, vopen)
     time.sleep(10)
     GPIO.output(BackwashTankValve, vclose)
     GPIO.output(ForwardTankValve, vclose)
@@ -456,7 +456,7 @@ GPIO.add_event_detect(BackwashFlow, GPIO.RISING, callback=callback_bflow)
 
 #----------------------------------Main loop----------------------------------------
 
-
+thread.start_new_thread(SwitchF,(.2,))
 C.bind("<End>",callback_end)
 C.place(x=10,y=280)
 GraphC.pack(anchor=CENTER)
