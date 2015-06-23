@@ -333,7 +333,7 @@ def move_time():
     root.after(baseTime*resolution,move_time)
 
 def SwitchB(delay):
-    print 'start backwash'
+    print 'start backwash %s' %str(datetime.now())
     GPIO.output(ForwardPumpValve,vclose)
     GPIO.output(BackwashTankValve, vclose)
     time.sleep(delay)   # try time delay to see if blip will go away 
@@ -342,7 +342,7 @@ def SwitchB(delay):
     print 'end backwash'
 
 def SwitchF(delay):
-    print 'start forward'
+    print 'start forward %s' %str(datetime.now())
     GPIO.output(ForwardTankValve,vclose)
     GPIO.output(BackwashPumpValve, vclose)
     time.sleep(delay)
@@ -356,16 +356,16 @@ def checkback():
         backwash = False
         Switch.set('Forward')
         if switched == True:
-            thread.start_new_thread(SwitchB,(.2,))
+            thread.start_new_thread(SwitchF,(.2,))
             cycles = cycles+1
             CY.set(str(cycles))
         switched  = False
         
-    if flowshow < float(FTdisplay.get()) and BPshow > 40 and flowshow > .1: 
+    if flowshow < float(FTdisplay.get()) and BPshow > 40:# and flowshow > .1: 
         backwash = True
         Switch.set('Backwash')
         if switched == False:
-            thread.start_new_thread(SwitchF,(.2,))
+            thread.start_new_thread(SwitchB,(.2,))
         switched = True
     root.after(minimumtime,checkback)
 
