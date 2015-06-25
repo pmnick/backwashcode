@@ -8,15 +8,18 @@ import numpy as np
 import spidev
 from datetime import datetime, timedelta
 import sys
+import smtplib
+import email
+#from email.mime.image import MIMEImage
+#from email.mime.multipart import MIMEmultipart
+from email.mime.text import MIMEText
 
 #To Do
 #       eventually a particle counter lable 
-## look into SSH remot control/screen sharing
 ## backwash time determined by flow past a certian point
 ## see if Graph can scroll with time rather than a set window
 ## make target data defineable in the program
 ## add in pressure drop over the solenoids
-## Emergency shutoff needs to pass in an argument or else it doesn't work
 #______________________________________________________________________________________________________________________
 #----------------------------------------------------------------------------------------------------------------------
                                                                                                                                                                                                                          
@@ -55,6 +58,9 @@ backshow = 0.0
 FPshow = ForwardPumpTarget
 BPshow = BackwashPumpTarget
 Diffshow= ForwardPumpTarget
+toaddr = 'markmahlon@gmail.com'
+fromaddr = 'markmahlon"gmail.com'
+subject = 'EMERGENCY SHUTOFF'
 
 
 #Setting up GUI
@@ -330,25 +336,7 @@ def move_time():
     #print(float(readadc_0(0))/1023*250)
     #title="V= " , str(round(3.3*float(readadc_0(2)-readadc_0(0))/1023,2)) , str(round(3.3*float(readadc_0(2))/1023,2)), str(round(3.3*float(readadc_0(0))/1023,2))
     #root.title(title)
-    root.after(baseTime*resolution,move_time)
-
-def SwitchB(delay):
-    print 'start backwash %s' %str(datetime.now())
-    GPIO.output(ForwardPumpValve,vclose)
-    GPIO.output(BackwashTankValve, vclose)
-    time.sleep(delay)   # try time delay to see if blip will go away 
-    GPIO.output(ForwardTankValve,vopen)
-    GPIO.output(BackwashPumpValve, vopen)
-    print 'end backwash'
-
-def SwitchF(delay):
-    print 'start forward %s' %str(datetime.now())
-    GPIO.output(ForwardTankValve,vclose)
-    GPIO.output(BackwashPumpValve, vclose)
-    time.sleep(delay)
-    GPIO.output(BackwashTankValve, vopen)
-    GPIO.output(ForwardPumpValve,vopen)
-    print 'end forward'
+    root.after(baseTime*resolution,move_time)    
 
 def checkback():
     global  forwardflow, backwash, Switch, switched, cycles, FlowTarget, flowshow
@@ -356,16 +344,13 @@ def checkback():
         backwash = False
         Switch.set('Forward')
         if switched == True:
-            thread.start_new_thread(SwitchF,(.2,))
             cycles = cycles+1
             CY.set(str(cycles))
         switched  = False
         
-    if flowshow < float(FTdisplay.get()) and BPshow > 40:# and flowshow > .1: 
+    if flowshow < float(FTdisplay.get()) and BPshow > 40 and flowshow > .1: 
         backwash = True
         Switch.set('Backwash')
-        if switched == False:
-            thread.start_new_thread(SwitchB,(.2,))
         switched = True
     root.after(minimumtime,checkback)
 
@@ -394,10 +379,6 @@ def writeData():
         GPIO.output(BackwashPump, on)
     if BackwashPumpActual - BackwashPumpTarget > float(PTdisplay.get())/2:
         GPIO.output(BackwashPump, off)
-
-    if BackwashPumpActual > 55 or ForwardPumpActual > 55:
-        print 'EMERGENCY SHUT OFF: Pressure too high!'
-        callback_end("<End>")
 
     Reading = (3.3*float(readadc_0(2)-readadc_0(0))/1023)*100
     DifferentialPressure=round(Reading-(-1.06+.1007*Reading),1)
@@ -432,6 +413,61 @@ def writeData():
     oldForwardFlowCount=ForwardFlowCount
     oldBackwashFlowCount=BackwashFlowCount
     root.after(samplePeriod,writeData)
+
+     if BackwashPumpActual > 55 or ForwardPumpActual > 55:
+        errormsg ='EMERGENCY SHUT OFF: Pressure too high!'
+        msg = errormsg
+        msg['Subject'] = 'EMERGENCY SHUT OFF: Pressure too high!'
+        msg['From'] = fromaddr
+        msg['To'] = toaddr
+        msg.preamble = str(datetime.now())
+        msgtext=MIMEText(errormsg, 'plain')
+        msg.attach(msgtext)
+        print errormsg
+        try:
+            s = smtplib.SMTP('localhost')
+            s.set_debuglevel(1)
+            s.send_message(msg)
+            s.quit
+        except:
+            print ('Error: unable to send email')
+        callback_end("<End>")
+
+        
+    if backwash==False and flowshow <0.09:
+        errormsg ='EMERGENCY SHUT OFF: Flow too low!'
+        msg = MIMEText(errormsg,'plain')
+        msg['Subject'] = "EMERGENCY SHUT OFF: Flow too low!"
+        msg['From'] = fromaddr
+        msg['To'] = toaddr
+        msg.preamble = str(datetime.now())       
+        print errormsg
+        try:
+            s = smtplib.SMTP('localhost')
+            s.set_debuglevel(1)
+            s.send_message(msg.as_string())
+            s.quit
+        except:
+            print ('Error: unable to send email')
+        callback_end("<End>")
+        
+    if backwash:
+        print 'start backwash %s' %str(datetime.now())
+        GPIO.output(ForwardPumpValve,vclose)
+        GPIO.output(BackwashTankValve, vclose)
+        #time.sleep(delay)   # try time delay to see if blip will go away 
+        GPIO.output(ForwardTankValve,vopen)
+        GPIO.output(BackwashPumpValve, vopen)
+        print 'end backwash'
+
+    else:
+        print 'start forward %s' %str(datetime.now())
+        GPIO.output(ForwardTankValve,vclose)
+        GPIO.output(BackwashPumpValve, vclose)
+        #time.sleep(delay)
+        GPIO.output(BackwashTankValve, vopen)
+        GPIO.output(ForwardPumpValve,vopen)
+        print 'end forward'
 
 def callback_end(event):
     global FlowCount, StartTime
