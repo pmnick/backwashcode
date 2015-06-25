@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import RPi.GPIO as GPIO
 from time import sleep
 from Tkinter import *
@@ -106,6 +105,6 @@ while BackwashPumpActual <30.0:
 GPIO.output(BackwashPump, off)
 GPIO.output(BackwashTankValve, vclose)
 GPIO.output(BackwashPumpValve, vclose)
-=======
+#=======
 # Pressureize
->>>>>>> b868e8014e6ac2537a4b7332ad80cf90e0a7ea41
+##>>>>>>> b868e8014e6ac2537a4b7332ad80cf90e0a7ea41
