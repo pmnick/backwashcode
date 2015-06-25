@@ -42,13 +42,13 @@ FlowTarget = 1.0 #lpm
 PumpThreshold = 1 #psi
 StartTime = datetime.now()
 samplePeriod = 100  #milliseconds
-minimumtime = 1000  #Time in miliseconds between possible backwash cycles
+backtime = 1.0 #Time in seconds of a backwash cycle
 destination = "/home/pi/Desktop/Data/AutosavedData %s.txt" %str(StartTime)
 a=open(destination,'w') #a means append to existing file, w means overwrite old data
 #add column headers for perameters and data
 a.write("\n\n"+ str(datetime.now())+","+str(ForwardPumpTarget)+","+str(BackwashPumpTarget)+","+str(FlowTarget)+","+str(PumpThreshold))
 backwash = False
-switched = False
+switched = True
 cycles = 0
 Average= 3 
 flowshow = 0.0
@@ -57,8 +57,10 @@ FPshow = ForwardPumpTarget
 BPshow = BackwashPumpTarget
 Diffshow= ForwardPumpTarget
 toaddr = 'markmahlon@gmail.com'
-fromaddr = 'markmahlon"gmail.com'
+fromaddr = 'markmahlon@gmail.com'
 subject = 'EMERGENCY SHUTOFF'
+TimestampB=time.clock()
+Timestamp=time.clock()
 
 
 #Setting up GUI
@@ -319,24 +321,8 @@ def move_time():
     ctar = GraphC.create_line(0,(249-float(FTdisplay.get())*12),450,(249-float(FTdisplay.get())*12), fill='red')
     root.after(baseTime*resolution,move_time)    
 
-def checkback():
-    global  forwardflow, backwash, Switch, switched, cycles, FlowTarget, flowshow
-    if backwash == True:
-        backwash = False
-        Switch.set('Forward')
-        if switched == True:
-            cycles = cycles+1
-            CY.set(str(cycles))
-        switched  = False
-        
-    if flowshow < float(FTdisplay.get()) and BPshow > 40 and flowshow > .1: 
-        backwash = True
-        Switch.set('Backwash')
-        switched = True
-    root.after(minimumtime,checkback)
-
 def writeData(): 
-    global destination,cycles,Diffshow,switched,samplePeriod,ForwardFlowCount,oldForwardFlowCount,BackwashFlowCount,oldBackwashFlowCount,forwardflow,backwashflow,FlowrateAvg,flowshow
+    global destination,cycles,Diffshow,switched,Switch,backwash,switched,samplePeriod,Timestamp,TimestampB,ForwardFlowCount,oldForwardFlowCount,BackwashFlowCount,oldBackwashFlowCount,forwardflow,backwashflow,FlowrateAvg,flowshow
 
     ##Calibration of sensor: Real Pressure = reading-(-1.06+.1007xreading)
     Reading=(3.3*float(readadc_0(3)-readadc_0(0))/1023)*100
@@ -394,7 +380,6 @@ def writeData():
         msg['To'] = toaddr
         msg.preamble = str(datetime.now())
         msgtext=MIMEText(errormsg, 'plain')
-        msg.attach(msgtext)
         print errormsg
         try:
             s = smtplib.SMTP('localhost')
@@ -404,40 +389,60 @@ def writeData():
         except:
             print ('Error: unable to send email')
         callback_end("<End>")
+        
+##    if backwash==False and flowshow >0.09:
+##        errormsg ='EMERGENCY SHUT OFF: Flow too low!'
+##        msg = MIMEText(errormsg,'plain')
+##        msg['Subject'] = "EMERGENCY SHUT OFF: Flow too low!"
+##        msg['From'] = fromaddr
+##        msg['To'] = toaddr
+##        msg.preamble = str(datetime.now())       
+##        print errormsg
+##        try:
+##            s = smtplib.SMTP('localhost')
+##            s.set_debuglevel(1)
+##            s.send_message(msg.as_string())
+##            s.quit
+##        except:
+##            print ('Error: unable to send email')
+##        callback_end("<End>")
+        
+    Timestamp=time.clock()
+    print Timestamp-TimestampB
+    print switched
 
-        
-    if backwash==False and flowshow <0.09:
-        errormsg ='EMERGENCY SHUT OFF: Flow too low!'
-        msg = MIMEText(errormsg,'plain')
-        msg['Subject'] = "EMERGENCY SHUT OFF: Flow too low!"
-        msg['From'] = fromaddr
-        msg['To'] = toaddr
-        msg.preamble = str(datetime.now())       
-        print errormsg
-        try:
-            s = smtplib.SMTP('localhost')
-            s.set_debuglevel(1)
-            s.send_message(msg.as_string())
-            s.quit
-        except:
-            print ('Error: unable to send email')
-        callback_end("<End>")
-        
+    if flowshow < float(FTdisplay.get())and Timestamp-TimestampB>2.5:# and BPshow > 40:# and flowshow > .1: 
+        backwash = True
+        Switch.set('Backwash')
+        if switched == False:
+            switched = True
+    
     if backwash:
-        print 'start backwash %s' %str(datetime.now())
-        GPIO.output(ForwardPumpValve,vclose)
-        GPIO.output(BackwashTankValve, vclose)
-        GPIO.output(ForwardTankValve,vopen)
-        GPIO.output(BackwashPumpValve, vopen)
-        print 'end backwash'
+        if switched == True:
+            TimestampB=time.clock()
+            GPIO.output(ForwardPumpValve,vclose)
+            GPIO.output(BackwashTankValve, vclose)
+            time.sleep(.2)
+            GPIO.output(ForwardTankValve,vopen)
+            GPIO.output(BackwashPumpValve, vopen)
+            print 'start backwash '
+        if Timestamp-TimestampB > backtime:
+            Backwash = False
+            print 'end backwash'     
 
     else:
-        print 'start forward %s' %str(datetime.now())
-        GPIO.output(ForwardTankValve,vclose)
-        GPIO.output(BackwashPumpValve, vclose)
-        GPIO.output(BackwashTankValve, vopen)
-        GPIO.output(ForwardPumpValve,vopen)
-        print 'end forward'
+        #
+        Switch.set('Forward')
+        if switched == True:
+            print 'start forward '
+            GPIO.output(ForwardTankValve,vclose)
+            GPIO.output(BackwashPumpValve, vclose)
+            time.sleep(.2)
+            GPIO.output(BackwashTankValve, vopen)
+            GPIO.output(ForwardPumpValve,vopen)
+            cycles = cycles+1
+            CY.set(str(cycles))
+            switched = False
 
 def callback_end(event):
     global FlowCount, StartTime
@@ -466,6 +471,5 @@ C.place(x=10,y=280)
 GraphC.pack(anchor=CENTER)
 root.after(baseTime,move_time)
 root.after(samplePeriod,writeData)
-root.after(minimumtime,checkback)
 m=mainWindow(root)
 root.mainloop()
