@@ -27,9 +27,7 @@ from email.mime.text import MIMEText
 print("start")
 #Setting up Spi to read ADC
 spi_0 = spidev.SpiDev()
-spi_0.open(0, 0)  #the second number indicates which SPI pin CE0 or CE1
-#to_send = [0x01,0x02,0x03] # speed Hz,Delay, bits per word
-#spi_0.xfer(to_send)
+spi_0.open(0, 0) 
 
 #Setting up Global Variables
 ForwardPumpTarget=15
@@ -43,7 +41,7 @@ backwashflow = 0.0
 FlowTarget = 1.0 #lpm
 PumpThreshold = 1 #psi
 StartTime = datetime.now()
-samplePeriod = 100  #milliseconds, time between data points written to txt file
+samplePeriod = 100  #milliseconds
 minimumtime = 1000  #Time in miliseconds between possible backwash cycles
 destination = "/home/pi/Desktop/Data/AutosavedData %s.txt" %str(StartTime)
 a=open(destination,'w') #a means append to existing file, w means overwrite old data
@@ -52,7 +50,7 @@ a.write("\n\n"+ str(datetime.now())+","+str(ForwardPumpTarget)+","+str(BackwashP
 backwash = False
 switched = False
 cycles = 0
-Average= 3 # taking 15 samples per second average of 15 will average over one second
+Average= 3 
 flowshow = 0.0
 backshow = 0.0
 FPshow = ForwardPumpTarget
@@ -193,12 +191,6 @@ Switch=StringVar()
 Switch.set('Forward')
 ManualSwitch = Checkbutton(Controls,indicatoron=0,textvariable=Switch)
 ManualSwitch.pack()
-##Switch2=StringVar()
-##Switch2.set('Liters')
-##boolvar= IntVar()
-##boolvar.set(1)
-##ConversionSwitch = Checkbutton(frame,indicatoron=0,textvariable=Switch2,variable=boolvar)
-##ConversionSwitch.pack()
 
 #--- Graph settings
 screenWidth = 450
@@ -287,7 +279,7 @@ GPIO.setup(ForwardPump, GPIO.OUT)
 GPIO.setup(BackwashTankValve, GPIO.OUT)
 GPIO.setup(BackwashPumpValve, GPIO.OUT)
 GPIO.setup(BackwashPump, GPIO.OUT)
-GPIO.setup(ForwardFlow, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)#Generally reads LOW
+GPIO.setup(ForwardFlow, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 GPIO.setup(BackwashFlow, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 #----------------------Function Definitons--------------------------------
@@ -295,15 +287,7 @@ GPIO.setup(BackwashFlow, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 def readadc_0(adcnum_0): #this fucntion can be used to find out the ADC value on ADC 0
     if adcnum_0 > 7 or adcnum_0 < 0:
         return -1
-
     r_0 = spi_0.xfer2([1, 8 + adcnum_0 << 4, 0]) #start bit, Single/Differential mode, Don't care bit OR
-    adcout_0 = ((r_0[1] & 3) << 8) + r_0[2]
-    return adcout_0
-
-def readadc_0diff(adcnum_0): #this fucntion can be used to find out the differential ADC value between two chanels on ADC 0
-    if adcnum_0 > 7 or adcnum_0 < 0:
-        return -1
-    r_0 = spi_0.xfer2([1, adcnum_0 << 4, 0]) #start bit, Single/Differential mode, Don't care bit OR
     adcout_0 = ((r_0[1] & 3) << 8) + r_0[2]
     return adcout_0
 
@@ -333,9 +317,6 @@ def move_time():
     shiftCoords(249-(flowshow*12))
     cl0 = GraphC.create_line(xy0Coords)
     ctar = GraphC.create_line(0,(249-float(FTdisplay.get())*12),450,(249-float(FTdisplay.get())*12), fill='red')
-    #print(float(readadc_0(0))/1023*250)
-    #title="V= " , str(round(3.3*float(readadc_0(2)-readadc_0(0))/1023,2)) , str(round(3.3*float(readadc_0(2))/1023,2)), str(round(3.3*float(readadc_0(0))/1023,2))
-    #root.title(title)
     root.after(baseTime*resolution,move_time)    
 
 def checkback():
@@ -366,7 +347,7 @@ def writeData():
     FTL.set(str(round(FPshow,1)))
     if ForwardPumpTarget-FPshow > float(PTdisplay.get())/2:
          GPIO.output(ForwardPump,on)
-    if FPshow-ForwardPumpTarget > float(PTdisplay.get())/2: #float(PTdisplay.get()):
+    if FPshow-ForwardPumpTarget > float(PTdisplay.get())/2:
         GPIO.output(ForwardPump,off)
 
     Reading=(3.3*float(readadc_0(1)-readadc_0(0))/1023)*100
@@ -375,7 +356,7 @@ def writeData():
     BPumpAvg.append(BackwashPumpActual)
     BPshow=np.mean(BPumpAvg)
     BTL.set(str(round(BPshow,1)))
-    if BackwashPumpTarget-BackwashPumpActual > float(PTdisplay.get())/2: #float(PTdisplay.get()):
+    if BackwashPumpTarget-BackwashPumpActual > float(PTdisplay.get())/2:
         GPIO.output(BackwashPump, on)
     if BackwashPumpActual - BackwashPumpTarget > float(PTdisplay.get())/2:
         GPIO.output(BackwashPump, off)
@@ -385,16 +366,7 @@ def writeData():
     DiffAvg.pop(0)
     DiffAvg.append(DifferentialPressure)
     Diffshow=np.mean(DiffAvg)
-    DL.set(str(round(Diffshow,1)))
-    
-##    if boolvar.get() == 1:
-##        Switch2.set('Liters')
-##        ConversionFactor = 60 # conversion factor to liters per minute
-##        ConversionFactor2 = 1000 # pulses per lieter
-##    else:
-##        Switch2.set('Gallons')
-##        ConversionFactor = 15.7
-##        ConversionFactor2 = 3800 # pulses per gallon        
+    DL.set(str(round(Diffshow,1)))    
         
     forwardflow=((ForwardFlowCount-oldForwardFlowCount)/samplePeriod)*60 #60 is a conversion factor to convert the flowrate from pulses per 100miliseconds to liters per minute
     FlowrateAvg.pop(0)
@@ -414,7 +386,7 @@ def writeData():
     oldBackwashFlowCount=BackwashFlowCount
     root.after(samplePeriod,writeData)
 
-     if BackwashPumpActual > 55 or ForwardPumpActual > 55:
+    if BackwashPumpActual > 55 or ForwardPumpActual > 55:
         errormsg ='EMERGENCY SHUT OFF: Pressure too high!'
         msg = errormsg
         msg['Subject'] = 'EMERGENCY SHUT OFF: Pressure too high!'
@@ -455,7 +427,6 @@ def writeData():
         print 'start backwash %s' %str(datetime.now())
         GPIO.output(ForwardPumpValve,vclose)
         GPIO.output(BackwashTankValve, vclose)
-        #time.sleep(delay)   # try time delay to see if blip will go away 
         GPIO.output(ForwardTankValve,vopen)
         GPIO.output(BackwashPumpValve, vopen)
         print 'end backwash'
@@ -464,7 +435,6 @@ def writeData():
         print 'start forward %s' %str(datetime.now())
         GPIO.output(ForwardTankValve,vclose)
         GPIO.output(BackwashPumpValve, vclose)
-        #time.sleep(delay)
         GPIO.output(BackwashTankValve, vopen)
         GPIO.output(ForwardPumpValve,vopen)
         print 'end forward'
@@ -480,7 +450,6 @@ def callback_end(event):
     time.sleep(10)
     GPIO.output(BackwashTankValve, vclose)
     GPIO.output(ForwardTankValve, vclose)
-    # GPIO.cleanup()#i think this would get get rid of the draining process
     spi_0.close()
     a.close()
     quit()
@@ -492,7 +461,6 @@ GPIO.add_event_detect(BackwashFlow, GPIO.RISING, callback=callback_bflow)
 
 #----------------------------------Main loop----------------------------------------
 
-thread.start_new_thread(SwitchF,(.2,))
 C.bind("<End>",callback_end)
 C.place(x=10,y=280)
 GraphC.pack(anchor=CENTER)
