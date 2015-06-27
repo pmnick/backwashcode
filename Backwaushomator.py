@@ -42,7 +42,7 @@ FlowTarget = 1.0 #lpm
 PumpThreshold = 1 #psi
 StartTime = datetime.now()
 samplePeriod = 100  #milliseconds
-backtime = 1.0 #Time in seconds of a backwash cycle
+backtime = timedelta(seconds=10.0,microseconds=0.0) #Time in miliseconds of a backwash cycle
 destination = "/home/pi/Desktop/Data/AutosavedData %s.txt" %str(StartTime)
 a=open(destination,'w') #a means append to existing file, w means overwrite old data
 #add column headers for perameters and data
@@ -50,6 +50,7 @@ a.write("\n\n"+ str(datetime.now())+","+str(ForwardPumpTarget)+","+str(BackwashP
 backwash = False
 switched = True
 cycles = 0
+passes = 0
 Average= 3 
 flowshow = 0.0
 backshow = 0.0
@@ -59,8 +60,8 @@ Diffshow= ForwardPumpTarget
 toaddr = 'markmahlon@gmail.com'
 fromaddr = 'markmahlon@gmail.com'
 subject = 'EMERGENCY SHUTOFF'
-TimestampB=time.clock()
-Timestamp=time.clock()
+TimestampB=datetime.now()
+Timestamp=datetime.now()
 
 
 #Setting up GUI
@@ -322,7 +323,7 @@ def move_time():
     root.after(baseTime*resolution,move_time)    
 
 def writeData(): 
-    global destination,cycles,Diffshow,switched,Switch,backwash,switched,samplePeriod,Timestamp,TimestampB,ForwardFlowCount,oldForwardFlowCount,BackwashFlowCount,oldBackwashFlowCount,forwardflow,backwashflow,FlowrateAvg,flowshow
+    global destination,cycles,Diffshow,passes,switched,Switch,backwash,switched,samplePeriod,Timestamp,TimestampB,ForwardFlowCount,oldForwardFlowCount,BackwashFlowCount,oldBackwashFlowCount,forwardflow,backwashflow,FlowrateAvg,flowshow
 
     ##Calibration of sensor: Real Pressure = reading-(-1.06+.1007xreading)
     Reading=(3.3*float(readadc_0(3)-readadc_0(0))/1023)*100
@@ -353,7 +354,7 @@ def writeData():
     DiffAvg.append(DifferentialPressure)
     Diffshow=np.mean(DiffAvg)
     DL.set(str(round(Diffshow,1)))    
-        
+
     forwardflow=((ForwardFlowCount-oldForwardFlowCount)/samplePeriod)*60 #60 is a conversion factor to convert the flowrate from pulses per 100miliseconds to liters per minute
     FlowrateAvg.pop(0)
     FlowrateAvg.append(forwardflow)
@@ -406,32 +407,33 @@ def writeData():
 ##        except:
 ##            print ('Error: unable to send email')
 ##        callback_end("<End>")
-        
-    Timestamp=time.clock()
-    print Timestamp-TimestampB
-    print switched
 
-    if flowshow < float(FTdisplay.get())and Timestamp-TimestampB>2.5:# and BPshow > 40:# and flowshow > .1: 
+    Timestamp=datetime.now()
+    print Timestamp-TimestampB
+   
+    if flowshow < float(FTdisplay.get())and Timestamp-TimestampB>backtime:# and BPshow > 40:# and flowshow > .1: 
         backwash = True
         Switch.set('Backwash')
-        if switched == False:
-            switched = True
-    
+     
     if backwash:
-        if switched == True:
-            TimestampB=time.clock()
-            GPIO.output(ForwardPumpValve,vclose)
-            GPIO.output(BackwashTankValve, vclose)
-            time.sleep(.2)
-            GPIO.output(ForwardTankValve,vopen)
-            GPIO.output(BackwashPumpValve, vopen)
-            print 'start backwash '
+        if switched == False:
+            passes= passes+1
+            if passes ==1:
+                TimestampB=datetime.now()
+                GPIO.output(ForwardPumpValve,vclose)
+                GPIO.output(BackwashTankValve, vclose)
+                time.sleep(.2)
+                GPIO.output(ForwardTankValve,vopen)
+                GPIO.output(BackwashPumpValve, vopen)
+                print 'start backwash '
         if Timestamp-TimestampB > backtime:
-            Backwash = False
-            print 'end backwash'     
+            backwash = False
+            switched = True
+            passes = 0
+            print 'end backwash'
+            TimestampB=datetime.now()
 
     else:
-        #
         Switch.set('Forward')
         if switched == True:
             print 'start forward '
