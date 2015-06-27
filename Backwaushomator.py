@@ -16,9 +16,7 @@ from email.mime.text import MIMEText
 
 #To Do
 #       eventually a particle counter lable 
-## backwash time determined by flow past a certian point
 ## see if Graph can scroll with time rather than a set window
-## make target data defineable in the program
 ## add in pressure drop over the solenoids
 #______________________________________________________________________________________________________________________
 #----------------------------------------------------------------------------------------------------------------------
@@ -38,11 +36,11 @@ BackwashPumpTarget=45
 BackwashFlowCount = 0.0
 oldBackwashFlowCount= 0.0
 backwashflow = 0.0
-FlowTarget = 1.0 #lpm
+FlowTarget = 2.0 #lpm
 PumpThreshold = 1 #psi
 StartTime = datetime.now()
 samplePeriod = 100  #milliseconds
-backtime = timedelta(seconds=10.0,microseconds=0.0) #Time in miliseconds of a backwash cycle
+backtime = timedelta(seconds=5.0,microseconds=0.0) #Time in miliseconds of a backwash cycle
 destination = "/home/pi/Desktop/Data/AutosavedData %s.txt" %str(StartTime)
 a=open(destination,'w') #a means append to existing file, w means overwrite old data
 #add column headers for perameters and data
@@ -391,27 +389,26 @@ def writeData():
             print ('Error: unable to send email')
         callback_end("<End>")
         
-##    if backwash==False and flowshow >0.09:
-##        errormsg ='EMERGENCY SHUT OFF: Flow too low!'
-##        msg = MIMEText(errormsg,'plain')
-##        msg['Subject'] = "EMERGENCY SHUT OFF: Flow too low!"
-##        msg['From'] = fromaddr
-##        msg['To'] = toaddr
-##        msg.preamble = str(datetime.now())       
-##        print errormsg
-##        try:
-##            s = smtplib.SMTP('localhost')
-##            s.set_debuglevel(1)
-##            s.send_message(msg.as_string())
-##            s.quit
-##        except:
-##            print ('Error: unable to send email')
-##        callback_end("<End>")
+    if backwash==False and flowshow < 0.1 and Timestamp-TimestampB>backtime and cycles>1:
+        errormsg ='EMERGENCY SHUT OFF: Flow too low!'
+        msg = MIMEText(errormsg,'plain')
+        msg['Subject'] = "EMERGENCY SHUT OFF: Flow too low!"
+        msg['From'] = fromaddr
+        msg['To'] = toaddr
+        msg.preamble = str(datetime.now())       
+        print errormsg
+        try:
+            s = smtplib.SMTP('localhost')
+            s.set_debuglevel(1)
+            s.send_message(msg.as_string())
+            s.quit
+        except:
+            print ('Error: unable to send email')
+        callback_end("<End>")
 
     Timestamp=datetime.now()
-    print Timestamp-TimestampB
    
-    if flowshow < float(FTdisplay.get())and Timestamp-TimestampB>backtime:# and BPshow > 40:# and flowshow > .1: 
+    if flowshow < float(FTdisplay.get()) and BPshow > 40 and flowshow > .1: 
         backwash = True
         Switch.set('Backwash')
      
@@ -425,18 +422,15 @@ def writeData():
                 time.sleep(.2)
                 GPIO.output(ForwardTankValve,vopen)
                 GPIO.output(BackwashPumpValve, vopen)
-                print 'start backwash '
         if Timestamp-TimestampB > backtime:
             backwash = False
             switched = True
             passes = 0
-            print 'end backwash'
             TimestampB=datetime.now()
 
     else:
         Switch.set('Forward')
         if switched == True:
-            print 'start forward '
             GPIO.output(ForwardTankValve,vclose)
             GPIO.output(BackwashPumpValve, vclose)
             time.sleep(.2)
