@@ -18,8 +18,10 @@ spi_0.open(0, 0)
 
 #Setting up Global Variables
 ForwardPumpTarget=15
+BackwashPumpTarget=40
 ForwardFlowCount = 0.0
 oldForwardFlowCount= 0.0
+backwashflow=0.0
 forwardflow = 0.0
 FlowTarget = 1.0 #lpm
 PumpThreshold = 1 #psi
@@ -109,7 +111,18 @@ Switch=StringVar()
 Switch.set('Forward')
 ManualSwitch = Checkbutton(Controls,indicatoron=0,textvariable=Switch)
 ManualSwitch.pack()
-
+FP_ison = IntVar()
+FT_ison = IntVar()
+BP_ison = IntVar()
+BT_ison = IntVar()
+FPSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=FP_ison)
+FTSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=FT_ison)
+BPSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=BP_ison)
+BTSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=BT_ison)
+FPSwitch.pack() 
+FTSwitch.pack()
+BPSwitch.pack()
+BTSwitch.pack()
 #--- Graph settings
 screenWidth = 450
 resolution = 1 #number of pixels between data points, for visual purposes only
@@ -201,12 +214,21 @@ def writeData():
     FPumpAvg.append(ForwardPumpActual)
     FPshow=np.mean(FPumpAvg)
     FTL.set(str(round(FPshow,1)))
-    if float(FPTdisplay.get())-FPshow > float(PTdisplay.get())/2:#if ForwardPumpTarget-FPshow > float(PTdisplay.get())/2:
+    if ForwardPumpActual-FPshow > PumpThreshold/2:#if ForwardPumpTarget-FPshow > float(PTdisplay.get())/2:
          GPIO.output(ForwardPump,on)
-    if FPshow-float(FPTdisplay.get()) > float(PTdisplay.get())/2:#if FPshow-ForwardPumpTarget > float(PTdisplay.get())/2:
+    if FPshow-ForwardPumpActual > PumpThreshold/2:#if FPshow-ForwardPumpTarget > float(PTdisplay.get())/2:
         GPIO.output(ForwardPump,off)
 
-    GPIO.output(BackwashPump, off)   
+    Reading=(3.3*float(readadc_0(1)-readadc_0(0))/1023)*100
+    BackwashPumpActual=round(Reading-(-1.06+.1007*Reading),1)
+    BPumpAvg.pop(0)
+    BPumpAvg.append(BackwashPumpActual)
+    BPshow=np.mean(BPumpAvg)
+    BTL.set(str(round(BPshow,1)))
+    if BackwashPumpActual-BackwashPumpActual > PumpThreshold/2:#if BackwashPumpTarget-BackwashPumpActual > float(PTdisplay.get())/2:
+        GPIO.output(BackwashPump, on)
+    if BackwashPumpActual - BackwashPumpActual > PumpThreshold/2:#if BackwashPumpActual - BackwashPumpTarget > float(PTdisplay.get())/2:
+        GPIO.output(BackwashPump, off)
 
     forwardflow=((ForwardFlowCount-oldForwardFlowCount)/samplePeriod)*60 #60 is a conversion factor to convert the flowrate from pulses per 100miliseconds to liters per minute
     FlowrateAvg.pop(0)
@@ -215,37 +237,35 @@ def writeData():
     FRL.set(str(round(flowshow,1)))
     
     FL.set(str(round(ForwardFlowCount/1000,1)))
-    data = str(round(Diffshow,1)) + "\t" + str(round(flowshow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(FPshow,1))+ "\t" +str(round(BPshow,1))+'\t'+str(cycles)+'\t'+str(backwash)#Writing averaged data
+    data = str(round(Diffshow,1)) + "\t" + str(round(flowshow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(FPshow,1))+ "\t" +str(round(BPshow,1))+'\t'+str(0)#Writing averaged data
     #data = str(round(Diffshow,1)) + "\t" + str(round(forwardflow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(ForwardPumpActual,1))+ "\t" +str(round(BackwashPumpActual,1))+'\t'+str(cycles)+'\t'+str(backwash) # writng actual data
     a.write("\n"+ str(datetime.now()) + "\t" + str(data))
     oldForwardFlowCount=ForwardFlowCount
    
 
     Timestamp=datetime.now()
-     
-    if backwash:
-        if switched == False:
-            passes= passes+1
-            if passes ==1:
-                TimestampB=datetime.now()
-                GPIO.output(ForwardPumpValve,vclose)
-                GPIO.output(BackwashTankValve, vclose)
-                time.sleep(1)
-                GPIO.output(ForwardTankValve,vopen)
-                GPIO.output(BackwashPumpValve, vopen)
-        if Timestamp-TimestampB > backtime:
-            backwash = False
-            switched = True
-            passes = 0
-            TimestampB=datetime.now()
 
+    if FP_ison.get():
+        GPIO.output(ForwardPumpValve,vopen)
+    else:
+        GPIO.output(ForwardPumpValve,vclose)
+
+    if FT_ison.get():
+        GPIO.output(ForwardTankValve,vopen)
     else:
         GPIO.output(ForwardTankValve,vclose)
-        GPIO.output(BackwashPumpValve, vclose)
-        GPIO.output(BackwashTankValve, vopen)
-        GPIO.output(ForwardPumpValve,vopen)
 
-     root.after(samplePeriod,writeData)
+    if BP_ison.get():
+        GPIO.output(BackwashPumpValve, vopen)
+    else:
+        GPIO.output(BackwashPumpValve, vclose)
+
+    if BT_ison.get():
+        GPIO.output(BackwashTankValve, vopen)
+    else:
+        GPIO.output(BackwashTankValve, vclose)
+
+    root.after(samplePeriod,writeData)
 
 def callback_end(event):
     global FlowCount, StartTime
@@ -271,5 +291,4 @@ C.bind("<End>",callback_end)
 C.place(x=10,y=280)
 GraphC.pack(anchor=CENTER)
 root.after(samplePeriod,writeData)
-m=mainWindow(root)
 root.mainloop()
