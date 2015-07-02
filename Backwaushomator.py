@@ -325,7 +325,7 @@ def move_time():
     root.after(baseTime*resolution,move_time)    
 
 def writeData(): 
-    global destination,cycles,Diffshow,passes,switched,Switch,backwash,switched,samplePeriod,Timestamp,TimestampB,ForwardFlowCount,oldForwardFlowCount,BackwashFlowCount,oldBackwashFlowCount,forwardflow,backwashflow,FlowrateAvg,flowshow
+    global destination,cycles,Diffshow,passes,switched,Switch,Stage,backwash,switched,samplePeriod,Timestamp,TimestampB,ForwardFlowCount,oldForwardFlowCount,BackwashFlowCount,oldBackwashFlowCount,forwardflow,backwashflow,FlowrateAvg,flowshow
 
     ##Calibration of sensor: Real Pressure = reading-(-1.06+.1007xreading)
     Reading=(3.3*float(readadc_0(3)-readadc_0(0))/1023)*100
@@ -357,7 +357,9 @@ def writeData():
     Diffshow=np.mean(DiffAvg)
     DL.set(str(round(Diffshow,1)))    
 
+    Timestamp=datetime.now()
     forwardflow=((ForwardFlowCount-oldForwardFlowCount)/samplePeriod)*60 #60 is a conversion factor to convert the flowrate from pulses per 100miliseconds to liters per minute
+    OldTimestamp=Timestamp
     FlowrateAvg.pop(0)
     FlowrateAvg.append(forwardflow)
     flowshow = np.mean(FlowrateAvg)
@@ -375,7 +377,7 @@ def writeData():
     oldBackwashFlowCount=BackwashFlowCount
     root.after(samplePeriod,writeData)
 
-    if BackwashPumpActual > 55 or ForwardPumpActual > 65:
+    if BackwashPumpActual > 60 or ForwardPumpActual > 60:
         errormsg ='EMERGENCY SHUT OFF: Pressure too high!'
         msg = errormsg
         msg['Subject'] = 'EMERGENCY SHUT OFF: Pressure too high!'
@@ -410,39 +412,61 @@ def writeData():
 ##            print ('Error: unable to send email')
 ##        callback_end("<End>")
 
-    Timestamp=datetime.now()
-   
-    if flowshow < float(FTdisplay.get()) and BPshow > float(BPdisplay.get()) and flowshow > .1: 
-        backwash = True
-        Switch.set('Backwash')
-     
-    if backwash:
-        if switched == False:
-            passes= passes+1
-            if passes ==1:
-                TimestampB=datetime.now()
-                GPIO.output(ForwardPumpValve,vclose)
-                GPIO.output(BackwashTankValve, vclose)
-                time.sleep(1)
-                GPIO.output(ForwardTankValve,vopen)
-                GPIO.output(BackwashPumpValve, vopen)
-        if Timestamp-TimestampB > backtime:
-            backwash = False
-            switched = True
-            passes = 0
-            TimestampB=datetime.now()
-
-    else:
-        Switch.set('Forward')
-        if switched == True:
-            GPIO.output(ForwardTankValve,vclose)
-            GPIO.output(BackwashPumpValve, vclose)
-            time.sleep(1)
+    
+    if Stage == 1:
+        passes= passes+1
+        if passes ==1:
             GPIO.output(BackwashTankValve, vopen)
             GPIO.output(ForwardPumpValve,vopen)
             cycles = cycles+1
             CY.set(str(cycles))
             switched = False
+        if flowshow < float(FTdisplay.get()) and BPshow > float(BPdisplay.get()) and  Diffshow > .55*float(FPTdisplay.get()): 
+            backwash = True
+            passes= 0
+            Stage = 2
+            Switch.set('Backwash')
+     
+    #if backwash:
+    elif Stage == 2:
+        if switched == False:
+            passes= passes+1
+            if passes ==1:
+                GPIO.output(ForwardPumpValve,vclose)
+                GPIO.output(BackwashTankValve, vclose)
+                TimestampB=datetime.now()
+            if Timestamp-TimestampB>delay:
+                passes = 0
+                Stage = 3
+
+    elif Stage == 3:
+        passes= passes+1
+        if passes ==1:
+            GPIO.output(ForwardTankValve,vopen)
+            GPIO.output(BackwashPumpValve, vopen)
+            TimestampB=datetime.now()
+        if Timestamp-TimestampB > backtime:
+            backwash = False
+            switched = True
+            passes = 0
+            Stage = 4
+            
+            #
+
+    elif Stage == 4:
+        Switch.set('Forward')
+        if switched == True:
+            passes= passes+1
+            if passes ==1:
+                GPIO.output(ForwardTankValve,vclose)
+                GPIO.output(BackwashPumpValve, vclose)
+                TimestampB=datetime.now()
+            if Timestamp-TimestampB>delay:
+                passes = 0
+                Stage = 1
+            
+
+    print Stage,passes,Timestamp-TimestampB
 
 def callback_end(event):
     global FlowCount, StartTime
