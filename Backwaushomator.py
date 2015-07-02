@@ -60,7 +60,10 @@ toaddr = 'markmahlon@gmail.com'
 fromaddr = 'markmahlon@gmail.com'
 subject = 'EMERGENCY SHUTOFF'
 TimestampB=datetime.now()
+OldTimestamp =datetime.now()
 Timestamp=datetime.now()
+
+Stage = 1 # 1=forward,2=switch to B,3=backwash,4=switch to forward
 
 
 #Setting up GUI
