@@ -32,15 +32,16 @@ ForwardPumpTarget=15
 ForwardFlowCount = 0.0
 oldForwardFlowCount= 0.0
 forwardflow = 0.0
-BackwashPumpTarget=45
+BackwashPumpTarget=40
 BackwashFlowCount = 0.0
 oldBackwashFlowCount= 0.0
 backwashflow = 0.0
-FlowTarget = 2.0 #lpm
+FlowTarget = 1.0 #lpm
 PumpThreshold = 1 #psi
 StartTime = datetime.now()
 samplePeriod = 100  #milliseconds
-backtime = timedelta(seconds=5.0,microseconds=0.0) #Time in miliseconds of a backwash cycle
+backtime = timedelta(seconds=.7,microseconds=0.0) #Time in seconds of a backwash cycle
+delay = timedelta(seconds=.5,microseconds=0.0) #Time in seconds of a backwash cycle
 destination = "/home/pi/Desktop/Data/AutosavedData %s.txt" %str(StartTime)
 a=open(destination,'w') #a means append to existing file, w means overwrite old data
 #add column headers for perameters and data
@@ -330,9 +331,9 @@ def writeData():
     FPumpAvg.append(ForwardPumpActual)
     FPshow=np.mean(FPumpAvg)
     FTL.set(str(round(FPshow,1)))
-    if ForwardPumpTarget-FPshow > float(PTdisplay.get())/2:
+    if float(FPTdisplay.get())-FPshow > float(PTdisplay.get())/2:#if ForwardPumpTarget-FPshow > float(PTdisplay.get())/2:
          GPIO.output(ForwardPump,on)
-    if FPshow-ForwardPumpTarget > float(PTdisplay.get())/2:
+    if FPshow-float(FPTdisplay.get()) > float(PTdisplay.get())/2:#if FPshow-ForwardPumpTarget > float(PTdisplay.get())/2:
         GPIO.output(ForwardPump,off)
 
     Reading=(3.3*float(readadc_0(1)-readadc_0(0))/1023)*100
@@ -341,9 +342,9 @@ def writeData():
     BPumpAvg.append(BackwashPumpActual)
     BPshow=np.mean(BPumpAvg)
     BTL.set(str(round(BPshow,1)))
-    if BackwashPumpTarget-BackwashPumpActual > float(PTdisplay.get())/2:
+    if float(BPdisplay.get())-BackwashPumpActual > float(PTdisplay.get())/2:#if BackwashPumpTarget-BackwashPumpActual > float(PTdisplay.get())/2:
         GPIO.output(BackwashPump, on)
-    if BackwashPumpActual - BackwashPumpTarget > float(PTdisplay.get())/2:
+    if BackwashPumpActual - float(BPdisplay.get()) > float(PTdisplay.get())/2:#if BackwashPumpActual - BackwashPumpTarget > float(PTdisplay.get())/2:
         GPIO.output(BackwashPump, off)
 
     Reading = (3.3*float(readadc_0(2)-readadc_0(0))/1023)*100
@@ -364,14 +365,14 @@ def writeData():
     BFL.set(str(round(backwashflow,1)))
     CL.set(str(round(BackwashFlowCount/1000,1)))
     FL.set(str(round(ForwardFlowCount/1000,1)))
-    #data = str(round(Diffshow,1)) + "\t" + str(round(flowshow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(FPshow,1))+ "\t" +str(round(BPshow,1))+'\t'+str(cycles)+'\t'+str(backwash)#Writing averaged data
-    data = str(round(Diffshow,1)) + "\t" + str(round(forwardflow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(ForwardPumpActual,1))+ "\t" +str(round(BackwashPumpActual,1))+'\t'+str(cycles)+'\t'+str(backwash) # writng actual data
+    data = str(round(Diffshow,1)) + "\t" + str(round(flowshow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(FPshow,1))+ "\t" +str(round(BPshow,1))+'\t'+str(cycles)+'\t'+str(backwash)#Writing averaged data
+    #data = str(round(Diffshow,1)) + "\t" + str(round(forwardflow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(ForwardPumpActual,1))+ "\t" +str(round(BackwashPumpActual,1))+'\t'+str(cycles)+'\t'+str(backwash) # writng actual data
     a.write("\n"+ str(datetime.now()) + "\t" + str(data))
     oldForwardFlowCount=ForwardFlowCount
     oldBackwashFlowCount=BackwashFlowCount
     root.after(samplePeriod,writeData)
 
-    if BackwashPumpActual > 55 or ForwardPumpActual > 55:
+    if BackwashPumpActual > 55 or ForwardPumpActual > 65:
         errormsg ='EMERGENCY SHUT OFF: Pressure too high!'
         msg = errormsg
         msg['Subject'] = 'EMERGENCY SHUT OFF: Pressure too high!'
@@ -389,26 +390,26 @@ def writeData():
             print ('Error: unable to send email')
         callback_end("<End>")
         
-    if backwash==False and flowshow < 0.1 and Timestamp-TimestampB>backtime and cycles>1:
-        errormsg ='EMERGENCY SHUT OFF: Flow too low!'
-        msg = MIMEText(errormsg,'plain')
-        msg['Subject'] = "EMERGENCY SHUT OFF: Flow too low!"
-        msg['From'] = fromaddr
-        msg['To'] = toaddr
-        msg.preamble = str(datetime.now())       
-        print errormsg
-        try:
-            s = smtplib.SMTP('localhost')
-            s.set_debuglevel(1)
-            s.send_message(msg.as_string())
-            s.quit
-        except:
-            print ('Error: unable to send email')
-        callback_end("<End>")
+##    if backwash==False and flowshow < 0.1 and Timestamp-TimestampB>backtime and cycles>1:
+##        errormsg ='EMERGENCY SHUT OFF: Flow too low!'
+##        msg = MIMEText(errormsg,'plain')
+##        msg['Subject'] = "EMERGENCY SHUT OFF: Flow too low!"
+##        msg['From'] = fromaddr
+##        msg['To'] = toaddr
+##        msg.preamble = str(datetime.now())       
+##        print errormsg
+##        try:
+##            s = smtplib.SMTP('localhost')
+##            s.set_debuglevel(1)
+##            s.send_message(msg.as_string())
+##            s.quit
+##        except:
+##            print ('Error: unable to send email')
+##        callback_end("<End>")
 
     Timestamp=datetime.now()
    
-    if flowshow < float(FTdisplay.get()) and BPshow > 40 and flowshow > .1: 
+    if flowshow < float(FTdisplay.get()) and BPshow > float(BPdisplay.get()) and flowshow > .1: 
         backwash = True
         Switch.set('Backwash')
      
@@ -419,7 +420,7 @@ def writeData():
                 TimestampB=datetime.now()
                 GPIO.output(ForwardPumpValve,vclose)
                 GPIO.output(BackwashTankValve, vclose)
-                time.sleep(.2)
+                time.sleep(1)
                 GPIO.output(ForwardTankValve,vopen)
                 GPIO.output(BackwashPumpValve, vopen)
         if Timestamp-TimestampB > backtime:
@@ -433,7 +434,7 @@ def writeData():
         if switched == True:
             GPIO.output(ForwardTankValve,vclose)
             GPIO.output(BackwashPumpValve, vclose)
-            time.sleep(.2)
+            time.sleep(1)
             GPIO.output(BackwashTankValve, vopen)
             GPIO.output(ForwardPumpValve,vopen)
             cycles = cycles+1
