@@ -28,11 +28,11 @@ spi_0 = spidev.SpiDev()
 spi_0.open(0, 0) 
 
 #Setting up Global Variables
-ForwardPumpTarget=15
+ForwardPumpTarget=10
 ForwardFlowCount = 0.0
 oldForwardFlowCount= 0.0
 forwardflow = 0.0
-BackwashPumpTarget=40
+BackwashPumpTarget=30
 BackwashFlowCount = 0.0
 oldBackwashFlowCount= 0.0
 backwashflow = 0.0
@@ -325,7 +325,7 @@ def move_time():
     root.after(baseTime*resolution,move_time)    
 
 def writeData(): 
-    global destination,cycles,Diffshow,passes,switched,Switch,Stage,backwash,switched,samplePeriod,Timestamp,TimestampB,ForwardFlowCount,oldForwardFlowCount,BackwashFlowCount,oldBackwashFlowCount,forwardflow,backwashflow,FlowrateAvg,flowshow
+    global destination,cycles,Diffshow,passes,switched,Switch,Stage,backwash,switched,samplePeriod,OldTimestamp,Timestamp,TimestampB,ForwardFlowCount,oldForwardFlowCount,BackwashFlowCount,oldBackwashFlowCount,forwardflow,backwashflow,FlowrateAvg,flowshow
 
     ##Calibration of sensor: Real Pressure = reading-(-1.06+.1007xreading)
     Reading=(3.3*float(readadc_0(3)-readadc_0(0))/1023)*100
@@ -358,7 +358,8 @@ def writeData():
     DL.set(str(round(Diffshow,1)))    
 
     Timestamp=datetime.now()
-    forwardflow=((ForwardFlowCount-oldForwardFlowCount)/samplePeriod)*60 #60 is a conversion factor to convert the flowrate from pulses per 100miliseconds to liters per minute
+    Delta = Timestamp-OldTimestamp
+    forwardflow=((ForwardFlowCount-oldForwardFlowCount)/(Delta.microseconds/1000))*60 #60 is a conversion factor to convert the flowrate from pulses per 100miliseconds to liters per minute
     OldTimestamp=Timestamp
     FlowrateAvg.pop(0)
     FlowrateAvg.append(forwardflow)
@@ -421,7 +422,7 @@ def writeData():
             cycles = cycles+1
             CY.set(str(cycles))
             switched = False
-        if flowshow < float(FTdisplay.get()) and BPshow > float(BPdisplay.get()) and  Diffshow > .55*float(FPTdisplay.get()): 
+        if flowshow < float(FTdisplay.get()) and BPshow > float(BPdisplay.get()) and flowshow > .9: #and  Diffshow > .55*float(FPTdisplay.get()): 
             backwash = True
             passes= 0
             Stage = 2
@@ -466,7 +467,7 @@ def writeData():
                 Stage = 1
             
 
-    print Stage,passes,Timestamp-TimestampB
+    #print Stage,passes,Timestamp-TimestampB
 
 def callback_end(event):
     global FlowCount, StartTime
