@@ -80,8 +80,8 @@ GPIO.output(ForwardTankValve, vclose)
 
 #-------------------------Pressurize the Tanks---------------------------------#
 
-GPIO.output(ForwardPumpValve, vopen)
-GPIO.output(BackwashTankValve, vopen)
+##GPIO.output(ForwardPumpValve, vopen)
+##GPIO.output(BackwashTankValve, vopen)
 ForwardPumpActual=round((3.3*float(readadc_0(3)-readadc_0(0))/1023)*100,1)
 print ForwardPumpActual
 while ForwardPumpActual <15.0:
@@ -89,15 +89,15 @@ while ForwardPumpActual <15.0:
     ForwardPumpActual = round((3.3*float(readadc_0(3)-readadc_0(0))/1023)*100,1)
     print ForwardPumpActual
 
-GPIO.output(ForwardPump,off)
-GPIO.output(ForwardPumpValve, vclose)
-GPIO.output(BackwashTankValve, vopen)
-GPIO.output(ForwardTankValve, vopen)
-GPIO.output(BackwashPumpValve, vclose)
+##GPIO.output(ForwardPump,off)
+##GPIO.output(ForwardPumpValve, vclose)
+##GPIO.output(BackwashTankValve, vopen)
+##GPIO.output(ForwardTankValve, vopen)
+##GPIO.output(BackwashPumpValve, vclose)
 
 BackwashPumpActual=round((3.3*float(readadc_0(1)-readadc_0(0))/1023)*100,1)
 print BackwashPumpActual
-while BackwashPumpActual <30.0:
+while BackwashPumpActual <40.0:
     GPIO.output(BackwashPump, on)
     BackwashPumpActual=round((3.3*float(readadc_0(1)-readadc_0(0))/1023)*100,1)
     print BackwashPumpActual

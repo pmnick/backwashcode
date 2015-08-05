@@ -10,52 +10,88 @@ from datetime import datetime, timedelta
 import sys
 import smtplib
 import email
+import serial
 #from email.mime.image import MIMEImage
 #from email.mime.multipart import MIMEmultipart
 from email.mime.text import MIMEText
 
 #To Do
 #       eventually a particle counter lable 
-## see if Graph can scroll with time rather than a set window
-## add in pressure drop over the solenoids
 #______________________________________________________________________________________________________________________
 #----------------------------------------------------------------------------------------------------------------------
                                                                                                                                                                                                                          
 
 print("start")
+
+#Setting up Serial Port comunication
+ser = serial.Serial(port='/dev/ttyUSB0',baudrate = 9600,parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS)
+
+try:
+    ser.open()
+except Exception, e:
+    print "Error: Cannot open serial port: " + str(e)
+    exit()
+
+if ser.isOpen():
+    print ser.portstr
+    try:#flush input and output buffers that could be halting comunication
+        ser.flushInput()
+        ser.flushOutput()
+    except Exception, e1:
+        print "error communicating...: " + str(e1)
+    ser.write('U')
+    while ser.inWaiting() > 0:
+        trash += ser.read(1)
+    ser.write('c')
+    while ser.inWaiting() > 0:
+        trash += ser.read(1)
+		
 #Setting up Spi to read ADC
 spi_0 = spidev.SpiDev()
 spi_0.open(0, 0) 
 
 #Setting up Global Variables
-ForwardPumpTarget=10
-ForwardFlowCount = 0.0
-oldForwardFlowCount= 0.0
-forwardflow = 0.0
-BackwashPumpTarget=30
-BackwashFlowCount = 0.0
-oldBackwashFlowCount= 0.0
-backwashflow = 0.0
-FlowTarget = 1.0 #lpm
+ForwardPumpTarget=15
+BackwashPumpTarget=45
+FlowTarget = 4.0 #lpm
 PumpThreshold = 1 #psi
-StartTime = datetime.now()
 samplePeriod = 100  #milliseconds
 backtime = timedelta(seconds=.7,microseconds=0.0) #Time in seconds of a backwash cycle
 delay = timedelta(seconds=.5,microseconds=0.0) #Time in seconds of a backwash cycle
+Average= 3 
+
+ForwardFlowCount = 0.0
+oldForwardFlowCount= 0.0
+forwardflow = 0.0
+BackwashFlowCount = 0.0
+oldBackwashFlowCount= 0.0
+backwashflow = 0.0
+cycles = 0
+passes = 0
+flowshow = 0.0
+backshow = 0.0
+
+StartTime = datetime.now()
 destination = "/home/pi/Desktop/Data/AutosavedData %s.txt" %str(StartTime)
 a=open(destination,'w') #a means append to existing file, w means overwrite old data
 #add column headers for perameters and data
 a.write("\n\n"+ str(datetime.now())+","+str(ForwardPumpTarget)+","+str(BackwashPumpTarget)+","+str(FlowTarget)+","+str(PumpThreshold))
 backwash = False
 switched = True
-cycles = 0
-passes = 0
-Average= 3 
-flowshow = 0.0
-backshow = 0.0
+
 FPshow = ForwardPumpTarget
 BPshow = BackwashPumpTarget
 Diffshow= ForwardPumpTarget
+um1 = ''
+um3 = ''
+um5 = ''
+um10 = ''
+um15 = ''
+um25 = ''
+um50 = ''
+um100 = ''
+trash = ''
+status = ''
 toaddr = 'markmahlon@gmail.com'
 fromaddr = 'markmahlon@gmail.com'
 subject = 'EMERGENCY SHUTOFF'
@@ -304,6 +340,49 @@ def callback_bflow(BackwashFlow):
     global BackwashFlowCount
     BackwashFlowCount+=1
 
+def callback_PCread():
+    global ser, um1, um3, um5, um10, um15, um25, um50, um100, trash, status,delay
+    timestamp=datetime.now()
+    ser.write('e')
+    while ser.inWaiting() > 0:
+        trash += ser.read(1)
+    ser.write('A')
+    while ser.inWaiting() < 100:
+        #Do nothing (workaround delay)
+    trash = ser.read(1)
+    status +=ser.read(1)
+    if status == " ":
+            status = 'No alarms'
+    elif status == "!":
+            status = 'Sensor Fail'
+    elif status == "$":
+            status = "Count Alarm"
+    else:
+            status = "?"
+    print 'Status is :' + status
+    trash += ser.read(24)
+    um1 = ser.read(6)
+    print um1
+    trash += ser.read(5)
+    um3 = ser.read(6)
+    trash += ser.read(5)
+    um5 = ser.read(6)
+    trash += ser.read(5)
+    um10 = ser.read(6)
+    trash += ser.read(5)
+    um15 = ser.read(6)
+    trash += ser.read(5)
+    um25 = ser.read(6)
+    trash += ser.read(5)
+    um50 = ser.read(6)
+    trash += ser.read(5)
+    um100 = ser.read(6)
+    while ser.inWaiting() > 0:
+            trash += ser.read(1)
+     ser.write('c')
+    while ser.inWaiting() > 0:
+        trash += ser.read(1)
+
 #shifts y values down in index in array to represent time moved forward
 def shiftCoords(nextValue):
 
@@ -422,7 +501,7 @@ def writeData():
             cycles = cycles+1
             CY.set(str(cycles))
             switched = False
-        if flowshow < float(FTdisplay.get()) and BPshow > float(BPdisplay.get()) and flowshow > .9: #and  Diffshow > .55*float(FPTdisplay.get()): 
+        if flowshow < float(FTdisplay.get()) and BPshow > float(BPdisplay.get()) and  Diffshow > .55*float(FPTdisplay.get()): 
             backwash = True
             passes= 0
             Stage = 2
