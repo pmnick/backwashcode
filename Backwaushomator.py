@@ -45,6 +45,7 @@ if ser.isOpen():
     ser.write('c')
     while ser.inWaiting() > 0:
         trash += ser.read(1)
+    
 		
 #Setting up Spi to read ADC
 spi_0 = spidev.SpiDev()
@@ -348,9 +349,10 @@ def callback_PCread():
         trash += ser.read(1)
     ser.write('A')
     while ser.inWaiting() < 100:
+        trash=''
         #Do nothing (workaround delay)
-    trash = ser.read(1)
-    status +=ser.read(1)
+    trash = ser.read(2)
+    status =ser.read(1)
     if status == " ":
             status = 'No alarms'
     elif status == "!":
@@ -358,11 +360,9 @@ def callback_PCread():
     elif status == "$":
             status = "Count Alarm"
     else:
-            status = "?"
-    print 'Status is :' + status
+            status = status
     trash += ser.read(24)
     um1 = ser.read(6)
-    print um1
     trash += ser.read(5)
     um3 = ser.read(6)
     trash += ser.read(5)
@@ -378,10 +378,13 @@ def callback_PCread():
     trash += ser.read(5)
     um100 = ser.read(6)
     while ser.inWaiting() > 0:
-            trash += ser.read(1)
-     ser.write('c')
+        trash += ser.read(1)
+    ser.write('c')
     while ser.inWaiting() > 0:
         trash += ser.read(1)
+
+    #print um5
+    root.after(10000,callback_PCread)
 
 #shifts y values down in index in array to represent time moved forward
 def shiftCoords(nextValue):
@@ -450,7 +453,7 @@ def writeData():
     BFL.set(str(round(backwashflow,1)))
     CL.set(str(round(BackwashFlowCount/1000,1)))
     FL.set(str(round(ForwardFlowCount/1000,1)))
-    data = str(round(Diffshow,1)) + "\t" + str(round(flowshow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(FPshow,1))+ "\t" +str(round(BPshow,1))+'\t'+str(cycles)+'\t'+str(backwash)#Writing averaged data
+    data = str(round(Diffshow,1)) + "\t" + str(round(flowshow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(FPshow,1))+ "\t" +str(round(BPshow,1))+'\t'+str(cycles)+'\t'+str(backwash)+'\t'+str(um1)+'\t'+str(um3)+'\t'+str(um5)+'\t'+str(um10)+'\t'+str(um15)+'\t'+str(um25)+'\t'+str(um50)+'\t'+str(um100)#Writing averaged data
     #data = str(round(Diffshow,1)) + "\t" + str(round(forwardflow,1)) + "\t" +str(round(backwashflow,1)) + "\t" +str(round(ForwardPumpActual,1))+ "\t" +str(round(BackwashPumpActual,1))+'\t'+str(cycles)+'\t'+str(backwash) # writng actual data
     a.write("\n"+ str(datetime.now()) + "\t" + str(data))
     oldForwardFlowCount=ForwardFlowCount
@@ -561,6 +564,7 @@ def callback_end(event):
     GPIO.output(ForwardTankValve, vclose)
     spi_0.close()
     a.close()
+    ser.write('e')
     quit()
 
 #Setting up event detection
@@ -575,5 +579,6 @@ C.place(x=10,y=280)
 GraphC.pack(anchor=CENTER)
 root.after(baseTime,move_time)
 root.after(samplePeriod,writeData)
+root.after(10000,callback_PCread)
 m=mainWindow(root)
 root.mainloop()
