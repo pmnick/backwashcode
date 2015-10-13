@@ -27,7 +27,7 @@ FlowTarget = 1.0 #lpm
 PumpThreshold = 1 #psi
 StartTime = datetime.now()
 samplePeriod = 10  #milliseconds
-destination = "/home/pi/Desktop/Data/DelayData %s.txt" %str(StartTime)
+destination = "/home/pi/Desktop/Data/testData/DelayData %s.txt" %str(StartTime)
 a=open(destination,'w') 
 Average= 3 
 flowshow = 0.0
@@ -111,19 +111,30 @@ Switch=StringVar()
 Switch.set('Forward')
 ManualSwitch = Checkbutton(Controls,indicatoron=0,textvariable=Switch)
 ManualSwitch.pack()
+
+
 FP_ison = IntVar()
 FT_ison = IntVar()
 BP_ison = IntVar()
 BT_ison = IntVar()
+ForwardPump_ison = IntVar()
+BackwashPump_ison = IntVar()
+
 FPSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=FP_ison,text='ForwardPumpValve')
 FTSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=FT_ison,text='ForwardTankValve')
 BPSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=BP_ison,text='BackwashPumpValve')
 BTSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=BT_ison,text='BackwashTankValve')
+ForwardPumpSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=ForwardPump_ison,text='ForwardPump')
+BackwashPumpSwitch = Checkbutton(Controls,onvalue=1,offvalue=0,variable=BackwashPump_ison,text='BaskwashPump')
+
 FPSwitch.pack()
 BTSwitch.pack()
 
 BPSwitch.pack()
 FTSwitch.pack()
+
+ForwardPumpSwitch.pack()
+BackwashPumpSwitch.pack()
 
 #--- Graph settings
 screenWidth = 450
@@ -266,6 +277,14 @@ def writeData():
         GPIO.output(BackwashTankValve, vopen)
     else:
         GPIO.output(BackwashTankValve, vclose)
+    if ForwardPump_ison.get():
+        GPIO.output(ForwardPump, on)
+    else:
+        GPIO.output(ForwardPump, off)
+    if BackwashPump_ison.get():
+        GPIO.output(BackwashPump, on)
+    else:
+        GPIO.output(BackwashPump, off)
 
     root.after(samplePeriod,writeData)
 

@@ -73,7 +73,7 @@ flowshow = 0.0
 backshow = 0.0
 
 StartTime = datetime.now()
-destination = "/home/pi/Desktop/Data/AutosavedData %s.txt" %str(StartTime)
+destination = "/home/pi/Desktop/Data/backwashData/AutosavedData %s.txt" %str(StartTime)
 a=open(destination,'w') #a means append to existing file, w means overwrite old data
 #add column headers for perameters and data
 a.write("\n\n"+ str(datetime.now())+","+str(ForwardPumpTarget)+","+str(BackwashPumpTarget)+","+str(FlowTarget)+","+str(PumpThreshold))
@@ -341,6 +341,11 @@ def callback_bflow(BackwashFlow):
     global BackwashFlowCount
     BackwashFlowCount+=1
 
+def callback_PCreadWrapper():
+    print 'Starting thread'
+    thread.start_new_thread(callback_PCread,())
+    root.after(10000,callback_PCreadWrapper)
+
 def callback_PCread():
     global ser, um1, um3, um5, um10, um15, um25, um50, um100, trash, status,delay
     timestamp=datetime.now()
@@ -383,8 +388,10 @@ def callback_PCread():
     while ser.inWaiting() > 0:
         trash += ser.read(1)
 
+    print 'Ending Thread'
+
     #print um5
-    root.after(10000,callback_PCread)
+    
 
 #shifts y values down in index in array to represent time moved forward
 def shiftCoords(nextValue):
@@ -462,38 +469,42 @@ def writeData():
 
     if BackwashPumpActual > 60 or ForwardPumpActual > 60:
         errormsg ='EMERGENCY SHUT OFF: Pressure too high!'
-        msg = errormsg
-        msg['Subject'] = 'EMERGENCY SHUT OFF: Pressure too high!'
-        msg['From'] = fromaddr
-        msg['To'] = toaddr
-        msg.preamble = str(datetime.now())
-        msgtext=MIMEText(errormsg, 'plain')
-        print errormsg
         try:
+            
+            msg = errormsg
+            msg['Subject'] = 'EMERGENCY SHUT OFF: Pressure too high!'
+            msg['From'] = fromaddr
+            msg['To'] = toaddr
+            msg.preamble = str(datetime.now())
+            msgtext=MIMEText(errormsg, 'plain')
+            print errormsg
             s = smtplib.SMTP('localhost')
             s.set_debuglevel(1)
             s.send_message(msg)
             s.quit
         except:
             print ('Error: unable to send email')
+        print errormsg
         callback_end("<End>")
         
-##    if backwash==False and flowshow < 0.1 and Timestamp-TimestampB>backtime and cycles>1:
-##        errormsg ='EMERGENCY SHUT OFF: Flow too low!'
-##        msg = MIMEText(errormsg,'plain')
-##        msg['Subject'] = "EMERGENCY SHUT OFF: Flow too low!"
-##        msg['From'] = fromaddr
-##        msg['To'] = toaddr
-##        msg.preamble = str(datetime.now())       
-##        print errormsg
-##        try:
-##            s = smtplib.SMTP('localhost')
-##            s.set_debuglevel(1)
-##            s.send_message(msg.as_string())
-##            s.quit
-##        except:
-##            print ('Error: unable to send email')
-##        callback_end("<End>")
+    if Stage == 1 and flowshow < 0.1 and Timestamp-TimestampB>backtime and cycles>1:
+        errormsg ='EMERGENCY SHUT OFF: Flow too low!'
+        try:
+            
+            msg = MIMEText(errormsg,'plain')
+            msg['Subject'] = "EMERGENCY SHUT OFF: Flow too low!"
+            msg['From'] = fromaddr
+            msg['To'] = toaddr
+            msg.preamble = str(datetime.now())       
+            print errormsg
+            s = smtplib.SMTP('localhost')
+            s.set_debuglevel(1)
+            s.send_message(msg.as_string())
+            s.quit
+        except:
+            print ('Error: unable to send email')
+        print errormsg
+        callback_end("<End>")
 
     
     if Stage == 1:
@@ -574,11 +585,11 @@ GPIO.add_event_detect(BackwashFlow, GPIO.RISING, callback=callback_bflow)
 
 #----------------------------------Main loop----------------------------------------
 
-C.bind("<End>",callback_end)
+C.bind_all("<End>",callback_end)
 C.place(x=10,y=280)
 GraphC.pack(anchor=CENTER)
 root.after(baseTime,move_time)
 root.after(samplePeriod,writeData)
-root.after(10000,callback_PCread)
+root.after(10000,callback_PCreadWrapper)
 m=mainWindow(root)
 root.mainloop()

@@ -402,16 +402,17 @@ def writeData():
         GPIO.output(BackwashPump, off)
 
     if BackwashPumpActual > 55 or ForwardPumpActual > 55:
-        errormsg ='EMERGENCY SHUT OFF: Pressure too high!'
-        msg = errormsg
-        msg['Subject'] = 'EMERGENCY SHUT OFF: Pressure too high!'
-        msg['From'] = fromaddr
-        msg['To'] = toaddr
-        msg.preamble = str(datetime.now())
-        msgtext=MIMEText(errormsg, 'plain')
-        msg.attach(msgtext)
-        print errormsg
+        
         try:
+            errormsg ='EMERGENCY SHUT OFF: Pressure too high!'
+            msg = errormsg
+            msg['Subject'] = 'EMERGENCY SHUT OFF: Pressure too high!'
+            msg['From'] = fromaddr
+            msg['To'] = toaddr
+            msg.preamble = str(datetime.now())
+            msgtext=MIMEText(errormsg, 'plain')
+            msg.attach(msgtext)
+            print errormsg
             s = smtplib.SMTP('localhost')
             s.set_debuglevel(1)
             s.send_message(msg)
@@ -446,7 +447,7 @@ def writeData():
     DL.set(str(round(Diffshow,1)))
     
 ##    if boolvar.get() == 1:
-##        Switch2.set('Liters')
+##        Switch2.set('Liters')//messes up average
 ##        ConversionFactor = 60 # conversion factor to liters per minute
 ##        ConversionFactor2 = 1000 # pulses per lieter
 ##    else:
