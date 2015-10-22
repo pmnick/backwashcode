@@ -98,7 +98,7 @@ while ForwardPumpActual <15.0:
 
 BackwashPumpActual=round((3.3*float(readadc_0(1)-readadc_0(0))/1023)*100,1)
 print BackwashPumpActual
-while BackwashPumpActual <40.0:
+while BackwashPumpActual <30.0:
     GPIO.output(BackwashPump, on)
     BackwashPumpActual=round((3.3*float(readadc_0(1)-readadc_0(0))/1023)*100,1)
     print BackwashPumpActual

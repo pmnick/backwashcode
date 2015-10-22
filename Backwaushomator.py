@@ -11,6 +11,7 @@ import sys
 import smtplib
 import email
 import serial
+
 #from email.mime.image import MIMEImage
 #from email.mime.multipart import MIMEmultipart
 from email.mime.text import MIMEText
@@ -138,7 +139,6 @@ class mainWindow(object):
 
     def entryValue(self):
         return self.w.value
-
 
 root = Tk()
 root.geometry('880x700+150+150')
@@ -342,27 +342,33 @@ def callback_bflow(BackwashFlow):
     BackwashFlowCount+=1
 
 def callback_PCreadWrapper():
-    print 'Starting thread'
-    thread.start_new_thread(callback_PCread,())
-    root.after(10000,callback_PCreadWrapper)
+    thread.start_new(callback_PCread1,())
+    
 
-def callback_PCread():
+def callback_PCread1():
     global ser, um1, um3, um5, um10, um15, um25, um50, um100, trash, status,delay
+    #print 'Starting Thread'
     timestamp=datetime.now()
     ser.write('e')
+    #print 'while'
     while ser.inWaiting() > 0:
         trash += ser.read(1)
     ser.write('A')
-    while ser.inWaiting() < 100:
-        trash=''
-        #Do nothing (workaround delay)
+    #print 'wait'
+    time.sleep(1)
+    thread.start_new(callback_PCread2,())  #causes me to loose 1 character per read
+    
+
+def callback_PCread2():
+    global ser, um1, um3, um5, um10, um15, um25, um50, um100, trash, status,delay
+    trash=''
     trash = ser.read(2)
-    status =ser.read(1)
-    if status == " ":
+    currentstatus =ser.read(1)
+    if currentstatus == " ":
             status = 'No alarms'
-    elif status == "!":
+    elif currentstatus == "!":
             status = 'Sensor Fail'
-    elif status == "$":
+    elif currentstatus == "$":
             status = "Count Alarm"
     else:
             status = status
@@ -382,13 +388,16 @@ def callback_PCread():
     um50 = ser.read(6)
     trash += ser.read(5)
     um100 = ser.read(6)
+    #print 'while'
     while ser.inWaiting() > 0:
         trash += ser.read(1)
     ser.write('c')
     while ser.inWaiting() > 0:
         trash += ser.read(1)
 
-    print 'Ending Thread'
+    root.after(10000,callback_PCreadWrapper)
+
+    #print 'Ending Thread'
 
     #print um5
     
@@ -570,7 +579,7 @@ def callback_end(event):
     GPIO.output(BackwashPumpValve, vclose)
     GPIO.output(ForwardTankValve, vopen)#lets pressure out into the tank
     GPIO.output(BackwashTankValve, vopen)
-    time.sleep(10)
+    time.sleep(2)
     GPIO.output(BackwashTankValve, vclose)
     GPIO.output(ForwardTankValve, vclose)
     spi_0.close()
